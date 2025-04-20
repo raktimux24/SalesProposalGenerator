@@ -12,44 +12,34 @@ export function ProposalDownload() {
   const [isDownloading, setIsDownloading] = useState(false)
   const { responseData } = useResponse()
   
-  // Handle both success and error cases
+  // Only use actual webhook response data
   const fileData = responseData?.fileData
-  
-  // For demo/fallback purposes - if no fileData is available but we have a timestamp,
-  // we can generate a fallback download URL
-  const timestamp = responseData?.timestamp ? new Date(responseData.timestamp).toISOString().replace(/[:.]/g, '-') : new Date().toISOString().replace(/[:.]/g, '-')
-  const fallbackFileUrl = `/downloads/${timestamp}-proposal.pdf`
 
   const handleDownload = () => {
-    setIsDownloading(true)
-    
-    // Use fileData if available, otherwise use fallback URL
-    const downloadUrl = fileData?.fileUrl || fallbackFileUrl
-    const fileName = fileData?.fileName || 'proposal.pdf'
-    
-    if (!downloadUrl) {
+    if (!fileData?.fileUrl) {
       console.error('No file URL available')
-      setIsDownloading(false)
       return
     }
     
+    setIsDownloading(true)
+    
     // For PDF files, we can either open in a new tab or download directly
-    if ((fileData?.fileExtension === 'pdf' && fileData?.mimeType === 'application/pdf') || downloadUrl.endsWith('.pdf')) {
+    if (fileData.fileExtension === 'pdf' && fileData.mimeType === 'application/pdf') {
       // Option 1: Open PDF in a new tab
-      window.open(downloadUrl, '_blank')
+      window.open(fileData.fileUrl, '_blank')
       
       // Option 2: Force download
       const link = document.createElement('a')
-      link.href = downloadUrl
-      link.download = fileName
+      link.href = fileData.fileUrl
+      link.download = fileData.fileName || 'proposal.pdf'
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
     } else {
       // Handle other file types with direct download
       const link = document.createElement('a')
-      link.href = downloadUrl
-      link.download = fileName
+      link.href = fileData.fileUrl
+      link.download = fileData.fileName || 'proposal-document'
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
@@ -74,7 +64,7 @@ export function ProposalDownload() {
           <button 
             className="inline-flex items-center justify-center whitespace-nowrap rounded-full text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 w-full gap-2" 
             onClick={handleDownload} 
-            disabled={isDownloading}
+            disabled={isDownloading || !fileData?.fileUrl}
           >
             {isDownloading ? (
               <>

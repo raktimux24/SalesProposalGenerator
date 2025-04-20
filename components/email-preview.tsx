@@ -6,29 +6,11 @@ import { useResponse } from "@/contexts/response-context"
 export function EmailPreview() {
   const { responseData } = useResponse()
   const emailSent = responseData?.emailSent || false
-  
-  // Create fallback email data if none is available
-  let emailData = responseData?.emailData
+  const emailData = responseData?.emailData
   
   // Debug log to check if email data is being received
   console.log('Email Preview Component - Response Data:', responseData)
   console.log('Email Preview Component - Email Data:', emailData)
-  
-  // Generate fallback email data if none exists
-  if (!emailData && responseData) {
-    // Try to get client info from the original form data if available
-    const formData = responseData.formData || {}
-    const clientName = formData.clientCompany || 'Client'
-    const serviceName = formData.serviceName || 'our services'
-    
-    emailData = {
-      subject: `Proposal for ${clientName}`,
-      from: 'Your Company <proposals@yourcompany.com>',
-      to: `${clientName} <client@example.com>`,
-      body: `Dear ${clientName},\n\nThank you for your interest in ${serviceName}. Please find attached our proposal document.\n\nBest regards,\nYour Company Team`,
-      previewHtml: undefined // Use undefined instead of null to fix TypeScript error
-    }
-  }
   
   // Function to render HTML content safely
   const createMarkup = (html: string) => {
@@ -106,8 +88,8 @@ export function EmailPreview() {
                 )}
               </div>
             </>
-          ) : responseData && responseData.success ? (
-            <div className="flex flex-col items-center justify-center py-8 text-center text-amber-600">
+          ) : (
+            <div className="flex flex-col items-center justify-center py-8 text-center text-destructive">
               <span className="h-12 w-12 mb-4 inline-block">
                 <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="12" cy="12" r="10"></circle>
@@ -115,22 +97,9 @@ export function EmailPreview() {
                   <line x1="12" y1="16" x2="12.01" y2="16"></line>
                 </svg>
               </span>
-              <h3 className="text-lg font-medium">Loading Email Data</h3>
+              <h3 className="text-lg font-medium">Email Data Not Available</h3>
               <p className="max-w-xs mt-2">
-                Your proposal was submitted successfully. The email preview is being generated...
-              </p>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-8 text-center text-gray-500">
-              <span className="h-12 w-12 mb-4 inline-block">
-                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect width="20" height="16" x="2" y="4" rx="2"></rect>
-                  <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path>
-                </svg>
-              </span>
-              <h3 className="text-lg font-medium">Email Preview</h3>
-              <p className="max-w-xs mt-2">
-                Submit your proposal to generate an email preview.
+                The webhook did not return any email data. Please check your webhook configuration.
               </p>
             </div>
           )}
