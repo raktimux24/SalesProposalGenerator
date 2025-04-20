@@ -51,11 +51,7 @@ function ProposalForm() {
       const response = await fetch("/api/submit-proposal", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
-          // Include API key from environment if available (for non-browser environments)
-          ...(process.env.NEXT_PUBLIC_API_KEY && {
-            "x-api-key": process.env.NEXT_PUBLIC_API_KEY
-          })
+          "Content-Type": "application/json"
         },
         body: JSON.stringify(formData),
       })
