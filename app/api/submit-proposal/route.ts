@@ -45,21 +45,28 @@ interface WebhookResponseData {
 
 // Define the expected proposal data schema
 const ProposalSchema = z.object({
-  companyName: z.string().min(1).optional(),
-  senderName: z.string().min(1).optional(),
-  senderEmail: z.string().email().optional(),
-  senderPhone: z.string().optional(),
-  recipientName: z.string().min(1).optional(),
-  recipientEmail: z.string().email().optional(),
-  recipientCompany: z.string().optional(),
-  proposalTitle: z.string().min(1).optional(),
-  proposalDescription: z.string().optional(),
-  products: z.array(z.object({
-    name: z.string(),
-    description: z.string().optional(),
-    quantity: z.number().int().positive(),
-    price: z.number().positive()
-  })).optional()
+  // Client Details
+  clientCompany: z.string().min(1, "Client company name is required"),
+  clientContact: z.string().min(1, "Client contact person is required"),
+  clientIndustry: z.string().optional(),
+
+  // Solution
+  serviceName: z.string().min(1, "Service/Project name is required"),
+  solutionOverview: z.string().min(1, "Solution overview is required"),
+  keyDeliverable: z.string().min(1, "Key deliverable is required"),
+
+  // Pricing
+  pricingDetails: z.string().min(1, "Pricing details are required"),
+  timeline: z.string().min(1, "Timeline is required"),
+
+  // Company
+  companyName: z.string().min(1, "Company name is required"),
+  senderName: z.string().min(1, "Sender name is required"),
+  contactDetails: z.string().min(1, "Contact details are required"),
+
+  // Optional metadata
+  _emailWebhookCall: z.boolean().optional(),
+  _timestamp: z.string().optional()
 });
 
 type ProposalData = z.infer<typeof ProposalSchema>;

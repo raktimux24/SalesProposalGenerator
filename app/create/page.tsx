@@ -18,7 +18,7 @@ import { ToastAction } from "@/components/ui/toast"
 
 function ProposalForm() {
   const router = useRouter()
-  const { formData, errors, isValid, setFieldTouched } = useForm()
+  const { formData, errors, touched, isValid, setFieldTouched } = useForm()
   const { setResponseData } = useResponse()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
@@ -34,37 +34,62 @@ function ProposalForm() {
       'senderName', 'contactDetails'
     ];
     
+    // Mark all fields as touched
     requiredFields.forEach(field => {
       setFieldTouched(field as keyof typeof formData, true);
     });
+
+    // Debug validation state
+    console.log('Form validation state:', { 
+      isValid, 
+      formData,
+      errors,
+      touched
+    });
+
+    // Manual validation to ensure all required fields are filled
+    let hasErrors = false;
+    let errorFields: string[] = [];
     
-    // Revalidate after setting all fields as touched
-    setTimeout(() => {
-      if (!isValid) {
-        setFormError("Please fix the errors in the form before submitting.")
-        topRef.current?.scrollIntoView({ behavior: "smooth" })
-
-        toast({
-          variant: "destructive",
-          title: "Validation Error",
-          description: "Please check all required fields and fix any errors before submitting.",
-          action: <ToastAction altText="Try again">Try again</ToastAction>,
-        })
-
-        return
+    for (const field of requiredFields) {
+      const value = formData[field as keyof typeof formData] || '';
+      if (!value.trim()) {
+        hasErrors = true;
+        errorFields.push(field);
       }
-    }, 100);
+    }
     
-    // Exit early if isValid is false to prevent the form submission
-    if (!isValid) {
+    console.log('Manual validation check:', { hasErrors, errorFields });
+
+    // We're going to bypass the isValid check and just use our manual validation
+    // This ensures we're not affected by potential state update issues
+    if (hasErrors) {
+      setFormError("Please fix the errors in the form before submitting.")
+      topRef.current?.scrollIntoView({ behavior: "smooth" })
+
+      toast({
+        variant: "destructive",
+        title: "Validation Error",
+        description: "Please check all required fields and fix any errors before submitting.",
+        action: <ToastAction altText="Try again">Try again</ToastAction>,
+      })
+
       return
     }
 
+    // If we reach here, form is valid according to our manual check
     setIsSubmitting(true)
     setFormError(null)
 
     try {
-      console.log("Preparing to send proposal data:", formData)
+      // Add metadata to the form data before sending
+      const enrichedFormData = {
+        ...formData,
+        _timestamp: new Date().toISOString(),
+        _emailWebhookCall: true
+      };
+
+      console.log("Preparing to send proposal data:", enrichedFormData);
       
       // Send data to our API route instead of directly to the webhook
       const response = await fetch("/api/submit-proposal", {
@@ -73,7 +98,7 @@ function ProposalForm() {
           "Content-Type": "application/json",
           "x-api-key": "8f3b2d7e-4a1c-4c0a-9c0d-7f6e8e5a2b1c"
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(enrichedFormData),
       })
       
       // Log the response status
@@ -111,7 +136,7 @@ function ProposalForm() {
               "Content-Type": "application/json",
               "x-api-key": "8f3b2d7e-4a1c-4c0a-9c0d-7f6e8e5a2b1c"
             },
-            body: JSON.stringify(formData),
+            body: JSON.stringify(enrichedFormData),
           });
           
           if (emailResponse.ok) {
@@ -131,7 +156,9 @@ function ProposalForm() {
           fileData: {
             fileName: filename,
             fileUrl: url,
-            mimeType: 'application/pdf'
+            mimeType: 'application/pdf',
+            fileExtension: filename.split('.').pop() || 'pdf',
+            fileSize: blob.size
           },
           emailData,
           emailSent,
