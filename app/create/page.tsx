@@ -18,7 +18,7 @@ import { ToastAction } from "@/components/ui/toast"
 
 function ProposalForm() {
   const router = useRouter()
-  const { formData, errors, isValid } = useForm()
+  const { formData, errors, isValid, setFieldTouched } = useForm()
   const { setResponseData } = useResponse()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
@@ -26,18 +26,37 @@ function ProposalForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Mark all fields as touched to reveal all validation errors
+    const requiredFields = [
+      'clientCompany', 'clientContact', 'serviceName', 'solutionOverview', 
+      'keyDeliverable', 'pricingDetails', 'timeline', 'companyName', 
+      'senderName', 'contactDetails'
+    ];
+    
+    requiredFields.forEach(field => {
+      setFieldTouched(field as keyof typeof formData, true);
+    });
+    
+    // Revalidate after setting all fields as touched
+    setTimeout(() => {
+      if (!isValid) {
+        setFormError("Please fix the errors in the form before submitting.")
+        topRef.current?.scrollIntoView({ behavior: "smooth" })
 
+        toast({
+          variant: "destructive",
+          title: "Validation Error",
+          description: "Please check all required fields and fix any errors before submitting.",
+          action: <ToastAction altText="Try again">Try again</ToastAction>,
+        })
+
+        return
+      }
+    }, 100);
+    
+    // Exit early if isValid is false to prevent the form submission
     if (!isValid) {
-      setFormError("Please fix the errors in the form before submitting.")
-      topRef.current?.scrollIntoView({ behavior: "smooth" })
-
-      toast({
-        variant: "destructive",
-        title: "Validation Error",
-        description: "Please fix the errors in the form before submitting.",
-        action: <ToastAction altText="Try again">Try again</ToastAction>,
-      })
-
       return
     }
 
