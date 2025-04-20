@@ -26,7 +26,7 @@ export default function Home() {
             <span className="gradient-text">Proposal Generator</span>
           </h1>
           <p className="text-xl text-muted-foreground md:text-2xl">
-            Create personalized SaaS/consulting proposals in minutes
+          Create personalised proposal in minutes for your SaaS/Consulting clients now.....
           </p>
         </motion.div>
 
