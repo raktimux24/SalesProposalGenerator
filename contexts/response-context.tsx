@@ -27,7 +27,24 @@ export interface WebhookResponseData {
     from?: string;
     previewHtml?: string;
   };
+  // Include the original form data for fallback generation
+  formData?: {
+    clientCompany?: string;
+    clientContact?: string;
+    clientIndustry?: string;
+    serviceName?: string;
+    solutionOverview?: string;
+    keyDeliverable?: string;
+    pricingDetails?: string;
+    timeline?: string;
+    companyName?: string;
+    senderName?: string;
+    contactDetails?: string;
+    [key: string]: any; // Allow for additional properties
+  };
   timestamp?: string;
+  error?: string;
+  localSaveError?: string;
 }
 
 // Define the context type

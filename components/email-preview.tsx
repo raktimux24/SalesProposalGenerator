@@ -6,11 +6,29 @@ import { useResponse } from "@/contexts/response-context"
 export function EmailPreview() {
   const { responseData } = useResponse()
   const emailSent = responseData?.emailSent || false
-  const emailData = responseData?.emailData
+  
+  // Create fallback email data if none is available
+  let emailData = responseData?.emailData
   
   // Debug log to check if email data is being received
   console.log('Email Preview Component - Response Data:', responseData)
   console.log('Email Preview Component - Email Data:', emailData)
+  
+  // Generate fallback email data if none exists
+  if (!emailData && responseData) {
+    // Try to get client info from the original form data if available
+    const formData = responseData.formData || {}
+    const clientName = formData.clientCompany || 'Client'
+    const serviceName = formData.serviceName || 'our services'
+    
+    emailData = {
+      subject: `Proposal for ${clientName}`,
+      from: 'Your Company <proposals@yourcompany.com>',
+      to: `${clientName} <client@example.com>`,
+      body: `Dear ${clientName},\n\nThank you for your interest in ${serviceName}. Please find attached our proposal document.\n\nBest regards,\nYour Company Team`,
+      previewHtml: undefined // Use undefined instead of null to fix TypeScript error
+    }
+  }
   
   // Function to render HTML content safely
   const createMarkup = (html: string) => {

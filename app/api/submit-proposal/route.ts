@@ -567,6 +567,8 @@ export async function POST(request: Request) {
           success: true,
           filename: localSaveResult.filename
         },
+        // Include the original form data for fallback generation
+        formData: formData,
         timestamp: new Date().toISOString()
       });
     } else {
@@ -578,6 +580,8 @@ export async function POST(request: Request) {
           webhookError: webhookError,
           localSaveError: 'Failed to save proposal locally',
           timestamp: new Date().toISOString(),
+          // Include the original form data for fallback generation
+          formData: formData,
           message: 'Your proposal was received but there was an issue with processing. Please contact support if needed.'
         },
         { status: 200 } // Return 200 instead of 500 to allow frontend to handle gracefully
