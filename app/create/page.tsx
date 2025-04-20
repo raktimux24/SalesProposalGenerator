@@ -69,13 +69,9 @@ function ProposalForm() {
         throw new Error(`Error parsing server response: ${response.status}`)
       }
       
-      // Check if the request was successful
-      if (!response.ok) {
-        const errorDetails = responseData.details || responseData.error || 'Unknown error';
-        throw new Error(`Server error: ${response.status} - ${errorDetails}`)
-      }
+      // We now handle success and error cases based on the responseData.success flag
+      // rather than the HTTP status code, since our API always returns 200 OK
       
-      // Handle different success scenarios
       if (responseData.success) {
         // Successful submission
         let successMessage = "Your proposal data has been submitted successfully.";
@@ -100,8 +96,26 @@ function ProposalForm() {
           router.push("/processing");
         }, 1000);
       } else {
-        // This shouldn't happen with our new API, but just in case
-        throw new Error("Unknown error in proposal submission");
+        // Handle the error case where the API returned success: false
+        // This is our new pattern - API returns 200 OK but with success: false and error details
+        console.log("API returned error details:", responseData.error, responseData.message);
+        
+        // Store the response data anyway - we might want to show partial results
+        setResponseData(responseData);
+        
+        // Show a toast with the error message from the API
+        const errorMessage = responseData.message || responseData.error || "Unknown error occurred";
+        
+        toast({
+          variant: "destructive",
+          title: "Partial Success",
+          description: errorMessage,
+        });
+        
+        // Still navigate to processing, as we may have partial results
+        setTimeout(() => {
+          router.push("/processing");
+        }, 1000);
       }
     } catch (error) {
       console.error("Error submitting form:", error)
