@@ -68,7 +68,8 @@ type ProposalData = z.infer<typeof ProposalSchema>;
 async function saveProposalLocally(formData: ProposalData) {
   try {
     // Create a directory to store proposals if it doesn't exist
-    const proposalDir = path.join(process.cwd(), 'local-proposals');
+    // Use /tmp/local-proposals for serverless compatibility
+    const proposalDir = path.join('/tmp', 'local-proposals');
     await fsPromises.mkdir(proposalDir, { recursive: true });
     
     // Generate a filename based on timestamp and company name
@@ -311,8 +312,9 @@ export async function POST(request: Request) {
             fileName += '.pdf';
           }
           
-          // Save the PDF file to public directory for direct access
-          const fileDir = path.join(process.cwd(), 'public', 'downloads');
+          // In serverless environments, we can't write to public directory
+          // Instead, save to /tmp (the only writable location) and encode file for response
+          const fileDir = path.join('/tmp', 'downloads');
           await fsPromises.mkdir(fileDir, { recursive: true });
           
           // Generate a unique filename
@@ -320,9 +322,13 @@ export async function POST(request: Request) {
           const savedFileName = `${timestamp}-${fileName}`;
           const filePath = path.join(fileDir, savedFileName);
           
-          // Save the PDF file as-is
+          // Save the PDF file to /tmp as fallback/debugging
           await fsPromises.writeFile(filePath, buffer);
-          console.log(`PDF saved to ${filePath}`);
+          console.log(`PDF saved to ${filePath} (temporary storage only)`); 
+          
+          // Instead of relying on file URLs (which won't work for /tmp),
+          // we'll include the PDF as base64 data in the response
+          const base64Data = buffer.toString('base64');
           
           // Create file data object
           fileData = {
@@ -330,7 +336,8 @@ export async function POST(request: Request) {
             fileExtension: 'pdf',
             mimeType: 'application/pdf',
             fileSize: buffer.length,
-            fileUrl: `/downloads/${savedFileName}`
+            // For direct download, we'll use a data URI
+            fileUrl: `data:application/pdf;base64,${base64Data}`
           };
         } else {
           console.log(`Received response with content-type: ${contentType}`);
