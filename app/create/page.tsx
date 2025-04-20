@@ -52,6 +52,10 @@ function ProposalForm() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          // Include API key from environment if available (for non-browser environments)
+          ...(process.env.NEXT_PUBLIC_API_KEY && {
+            "x-api-key": process.env.NEXT_PUBLIC_API_KEY
+          })
         },
         body: JSON.stringify(formData),
       })

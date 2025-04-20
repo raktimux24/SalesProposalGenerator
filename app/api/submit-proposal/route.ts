@@ -2,6 +2,31 @@ import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 import { promises as fsPromises } from 'fs';
+import { z } from 'zod';
+
+// In-memory rate limiting
+const rateLimitMap = new Map<string, { count: number, last: number }>();
+const RATE_LIMIT = 10; // requests
+const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute (60 seconds)
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip) || { count: 0, last: now };
+  
+  if (now - entry.last > RATE_LIMIT_WINDOW) {
+    rateLimitMap.set(ip, { count: 1, last: now });
+    return false; // Not rate limited
+  }
+  
+  if (entry.count >= RATE_LIMIT) {
+    return true; // Rate limited
+  }
+  
+  entry.count += 1;
+  entry.last = now;
+  rateLimitMap.set(ip, entry);
+  return false; // Not rate limited
+}
 
 // Define the response data structure with file information
 export interface WebhookResponseData {
@@ -23,8 +48,27 @@ export interface WebhookResponseData {
   };
 }
 
+// Define the expected proposal data schema
+const ProposalSchema = z.object({
+  companyName: z.string().min(1).optional(),
+  senderName: z.string().min(1).optional(),
+  senderEmail: z.string().email().optional(),
+  contactDetails: z.string().optional(),
+  clientCompany: z.string().min(1).optional(),
+  clientName: z.string().optional(),
+  clientContact: z.string().optional(),
+  clientIndustry: z.string().optional(),
+  serviceName: z.string().min(1).optional(),
+  solutionOverview: z.string().optional(),
+  keyDeliverable: z.string().optional(),
+  pricingDetails: z.string().optional(),
+  timeline: z.string().optional()
+});
+
+type ProposalData = z.infer<typeof ProposalSchema>;
+
 // Function to save proposal data locally as a fallback
-async function saveProposalLocally(formData: any) {
+async function saveProposalLocally(formData: ProposalData) {
   try {
     // Create a directory for storing proposals if it doesn't exist
     const dataDir = path.join(process.cwd(), 'data');
@@ -45,29 +89,78 @@ async function saveProposalLocally(formData: any) {
       JSON.stringify(formData, null, 2)
     );
     
-    console.log(`Proposal saved locally as ${filename}`);
+    console.log(`Proposal saved locally for client: ${clientName} at ${timestamp}`);
     return { success: true, filename };
   } catch (error) {
-    console.error('Error saving proposal locally:', error);
-    return { success: false, error };
+    console.error('Error saving proposal locally:', error instanceof Error ? error.message : 'Unknown error');
+    return { success: false, filename: undefined };
   }
 }
 
 export async function POST(request: Request) {
   try {
-    // Parse the incoming request body
-    const formData = await request.json();
+    // 1. Rate limiting check
+    const ip = request.headers.get('x-forwarded-for') || 'unknown';
+    if (checkRateLimit(ip)) {
+      return NextResponse.json(
+        { success: false, message: 'Too many requests' },
+        { status: 429 }
+      );
+    }
     
-    // Log the received data
-    console.log('Received proposal data:', formData);
+    // 2. API key authentication - allow same-origin requests or valid API key
+    const apiKey = request.headers.get('x-api-key');
+    const origin = request.headers.get('origin') || '';
+    const referer = request.headers.get('referer') || '';
     
-    // Always save the proposal data locally first as a backup
+    // Check if it's a same-origin request (from our own frontend)
+    const isSameOrigin = 
+      origin.includes('localhost') || 
+      referer.includes('localhost') || 
+      origin.includes(request.headers.get('host') || '');
+      
+    // If it's not a same-origin request, require API key
+    if (!isSameOrigin && (!process.env.API_KEY || apiKey !== process.env.API_KEY)) {
+      return NextResponse.json(
+        { success: false, message: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+    
+    // 3. Parse and validate the incoming request body
+    let formData: ProposalData;
+    try {
+      const rawData = await request.json();
+      formData = ProposalSchema.parse(rawData);
+    } catch (e) {
+      return NextResponse.json(
+        { success: false, message: 'Invalid input data' },
+        { status: 400 }
+      );
+    }
+    
+    // 4. Log only non-sensitive metadata
+    console.log(`Received proposal from: ${formData.clientCompany || 'Unknown client'} at ${new Date().toISOString()}`);
+    
+    // 5. Always save the proposal data locally first as a backup
     const localSaveResult = await saveProposalLocally(formData);
     
-    // The webhook URLs to forward the data to
-    // Note: In n8n test mode, these webhooks need to be activated before each use
-    const proposalWebhookUrl = 'https://proposalgenerator.app.n8n.cloud/webhook/438aab33-47e8-4929-973c-efca7dac13c1';
-    const emailWebhookUrl = 'https://proposalgenerator.app.n8n.cloud/webhook/5515a563-4478-4ac4-93ee-3d4e9d134248';
+    // 6. Get webhook URLs from environment variables
+    const proposalWebhookUrl = process.env.PROPOSAL_WEBHOOK_URL;
+    const emailWebhookUrl = process.env.EMAIL_WEBHOOK_URL;
+    
+    // Validate webhook URLs exist
+    if (!proposalWebhookUrl || !emailWebhookUrl) {
+      console.error('Missing webhook URL environment variables');
+      return NextResponse.json(
+        { 
+          success: false, 
+          message: 'Server configuration error',
+          localBackup: localSaveResult
+        },
+        { status: 500 }
+      );
+    }
     
     // Remove the 'test' part from the URL to use the production webhook instead of test webhook
     // If you need to use test webhooks, you'll need to activate them before each use at:
@@ -477,7 +570,7 @@ export async function POST(request: Request) {
         { 
           error: 'Failed to process proposal', 
           webhookError: webhookError,
-          localSaveError: localSaveResult.error,
+          localSaveError: 'Failed to save proposal locally',
           timestamp: timestamp
         },
         { status: 500 }
