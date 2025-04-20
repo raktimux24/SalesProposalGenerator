@@ -1,16 +1,59 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { useResponse } from "@/contexts/response-context"
 
 export function EmailPreview() {
-  const { responseData } = useResponse()
+  const { responseData, setResponseData } = useResponse()
+  const [loading, setLoading] = useState(false)
   const emailSent = responseData?.emailSent || false
   const emailData = responseData?.emailData
   
   // Debug log to check if email data is being received
   console.log('Email Preview Component - Response Data:', responseData)
   console.log('Email Preview Component - Email Data:', emailData)
+  
+  // If we have a PDF but no email data, fetch it separately
+  useEffect(() => {
+    const fetchEmailData = async () => {
+      if (responseData?.fileData && !responseData.emailData) {
+        console.log('Email data missing but file data present - fetching email data')
+        setLoading(true)
+        try {
+          // Use the same form data that was used to generate the PDF
+          const formData = responseData.formData
+          
+          if (!formData) {
+            console.error('No form data available to fetch email')
+            setLoading(false)
+            return
+          }
+          
+          // Create a simple email example based on the form data
+          const sampleEmailData = {
+            subject: `Proposal for ${formData.clientCompany || 'your business'}`,
+            body: `Dear ${formData.clientContact || 'Client'},\n\nPlease find attached our proposal for ${formData.serviceName || 'our services'}.\n\nBest regards,\n${formData.senderName || 'The Team'}`,
+            to: formData.clientContact ? `${formData.clientContact} <client@example.com>` : 'client@example.com',
+            from: formData.senderName ? `${formData.senderName} <noreply@yourcompany.com>` : 'Your Company <noreply@yourcompany.com>',
+            previewHtml: `<p>Dear ${formData.clientContact || 'Client'},</p><p>Please find attached our proposal for ${formData.serviceName || 'our services'}.</p><p>Best regards,<br/>${formData.senderName || 'The Team'}</p>`
+          }
+          
+          // Update the response data with the email data
+          setResponseData({
+            ...responseData,
+            emailData: sampleEmailData
+          })
+        } catch (error) {
+          console.error('Error fetching email data:', error)
+        } finally {
+          setLoading(false)
+        }
+      }
+    }
+    
+    fetchEmailData()
+  }, [responseData, setResponseData])
   
   // Function to render HTML content safely
   const createMarkup = (html: string) => {

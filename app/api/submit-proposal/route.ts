@@ -509,15 +509,6 @@ export async function POST(request: Request) {
             fileSize: buffer.length,
             fileUrl: `/downloads/${savedFileName}`
           };
-        } else if (contentType.includes('application/json')) {
-          // It's JSON data
-          const responseData = await proposalResponse.json();
-          console.log('Webhook JSON response:', responseData);
-          
-          // Check if the response contains file data
-          if (responseData.fileData) {
-            fileData = responseData.fileData;
-          }
         } else {
           console.log(`Received response with content-type: ${contentType}`);
         }

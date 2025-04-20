@@ -51,7 +51,8 @@ function ProposalForm() {
       const response = await fetch("/api/submit-proposal", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+          "x-api-key": "8f3b2d7e-4a1c-4c0a-9c0d-7f6e8e5a2b1c"
         },
         body: JSON.stringify(formData),
       })
@@ -59,7 +60,83 @@ function ProposalForm() {
       // Log the response status
       console.log("API response status:", response.status)
       
-      // Parse the response JSON
+      // Check content type to determine if it's JSON or PDF
+      const contentType = response.headers.get('content-type') || '';
+      
+      // Handle PDF responses (direct download)
+      if (contentType.includes('application/pdf')) {
+        console.log('Received PDF response from API');
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        
+        // Get filename from content-disposition header if available
+        let filename = 'proposal.pdf';
+        const disposition = response.headers.get('content-disposition');
+        if (disposition) {
+          const filenameMatch = disposition.match(/filename="(.+)"/i);
+          if (filenameMatch && filenameMatch[1]) {
+            filename = filenameMatch[1];
+          }
+        }
+        
+        // We need to make a separate API call to get the email data, since it's not in the PDF response
+        console.log('Making additional API call to get email data');
+        let emailData;
+        let emailSent = false;
+        
+        try {
+          // Call a special endpoint that returns only the email data without generating a new PDF
+          const emailResponse = await fetch("/api/submit-proposal?emailOnly=true", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-api-key": "8f3b2d7e-4a1c-4c0a-9c0d-7f6e8e5a2b1c"
+            },
+            body: JSON.stringify(formData),
+          });
+          
+          if (emailResponse.ok) {
+            const emailResponseData = await emailResponse.json();
+            emailData = emailResponseData.emailData;
+            emailSent = emailResponseData.emailSent || false;
+            console.log('Email data received:', emailData);
+          }
+        } catch (emailError) {
+          console.error('Failed to fetch email data:', emailError);
+        }
+        
+        // Create a complete response data object with both file and email data
+        const responseData = {
+          success: true,
+          message: 'Proposal PDF generated successfully',
+          fileData: {
+            fileName: filename,
+            fileUrl: url,
+            mimeType: 'application/pdf'
+          },
+          emailData,
+          emailSent,
+          // Include the original form data so components can use it
+          formData
+        };
+        
+        // Store the response data and PDF URL
+        setResponseData(responseData);
+        
+        toast({
+          title: "Success",
+          description: "Your proposal PDF has been generated successfully.",
+        });
+        
+        // Navigate to processing page
+        setTimeout(() => {
+          router.push("/processing");
+        }, 1000);
+        
+        return; // Exit early since we've handled the PDF response
+      }
+      
+      // Handle JSON responses
       let responseData;
       try {
         responseData = await response.json()
