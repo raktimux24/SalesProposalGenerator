@@ -42,6 +42,9 @@ export default function ProcessingPage() {
 
   return (
     <div className="relative flex flex-1 items-center justify-center overflow-hidden">
+      {/* Full-page gradient background */}
+      <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-purple-500/10 to-primary/5" />
+      
       {/* Background blobs */}
       <div className="absolute -top-24 -left-24 h-64 w-64 rounded-full bg-primary/10 blob-animation" />
       <div
